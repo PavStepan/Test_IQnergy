@@ -18,7 +18,6 @@ def main():
 
     while pc.alive_count() > 0:
         print(f"Выполняемые задачи: {pc.alive_count()}, Задачи в ожидании: {pc.wait_count()}")
-
         time.sleep(1)
     pc.wait()
 
