@@ -16,9 +16,9 @@ def main():
     tasks = [(task, (i, )) for i in range(10)]
     pc.start(tasks=tasks, max_exec_time=2)
 
-    while pc.alive_count() > 0:
-        print(f"Выполняемые задачи: {pc.alive_count()}, Задачи в ожидании: {pc.wait_count()}")
-        time.sleep(1)
+    print(f"\n\nВыполняемые задачи: {pc.alive_count()}, Задачи в ожидании: {pc.wait_count()}\n\n")
+
+    print('Запускаем wait')
     pc.wait()
 
     print("Все задачи выполнены")
