@@ -6,52 +6,57 @@ class ProcessController:
     """ Класс, который организует очередь задач и параллельное их выполнение """
     def __init__(self):
         self.max_proc = 1
-        self.tasks = list()
-        self.max_exec_time = 0
+        self.tasks = multiprocessing.Queue()
+        self.run_tasks = multiprocessing.Queue()
+        print('nen')
+        print(self.tasks.empty())
+        multiprocessing.Process(target=self.process_handler, args=(self.tasks, self.run_tasks)).start()
 
     def set_max_proc(self, n: int):
         self.max_proc = n
 
     def start(self, tasks, max_exec_time=0):
-        self.tasks = tasks
-        self.max_exec_time = max_exec_time
-        while len(multiprocessing.active_children()) < self.max_proc and len(self.tasks) > 0:
-            i_task = self.tasks.pop(0)
-            process = multiprocessing.Process(target=self.run_task, args=(i_task, ))
-            process.start()
+        self.tasks.put([[i_task[0], i_task[1], max_exec_time] for i_task in tasks])
+        print(self.tasks.get())
 
-        start = time.time()
-
-        while len(multiprocessing.active_children()) > 0:
-            if max_exec_time > 0:
-                for i_process in multiprocessing.active_children():
-                    print(f'Процесс {i_process} работает {time.time() - start} Секунд')
-                    if i_process.is_alive() and time.time() - start >= max_exec_time:
-                        i_process.terminate()
-                        print(f'Процесс {i_process} не успела выполнится за {max_exec_time} секунд! TERMINATE')
-                    else:
-                        if i_process.is_alive():
-                            print(f'Процесс {i_process} продолжает свою работу свою работу!')
-                        else:
-                            print(f'Процесс {i_process} завершила свою работу!')
-                time.sleep(1)
+    def process_handler(self, tasks):
+        print('nen!!')
+        if not tasks.empty():
+            print(tasks)
+            print('Start')
+            # while True:
+            #     print(self.tasks)
+            #     if len(self.run_tasks) < self.max_proc and len(tasks) > 0:
+            #         i_task, count_time = tasks.get()
+            #         process = multiprocessing.Process(target=self.run_task, args=(i_task, count_time))
+            #         self.run_tasks.append(process)
+            #         process.start()
+            #
+            #     for i_process in self.run_tasks:
+            #         if not i_process.is_alive():
+            #             self.run_tasks.remove(i_process)
 
     @staticmethod
-    def run_task(task):
-        print(f'Процесс {multiprocessing.current_process()} начал работу!')
+    def run_task(task, max_exec_time):
+        print(f'start {multiprocessing.current_process()}')
         run_func, args = task
         start = time.time()
-        run_func(*args)
-        print(f'Процесс {multiprocessing.current_process()} выполнен за {time.time() - start}')
+        process = multiprocessing.Process(target=run_func, args=args)
+        process.start()
+
+        if max_exec_time > 0:
+            while time.time() - start < max_exec_time:
+                time.sleep(1)
+            process.terminate()
+        print(f'end {multiprocessing.current_process()}')
+
 
     def wait(self):
-        while len(self.tasks) > 0:
-            if len(multiprocessing.active_children()) < self.max_proc:
-                self.start(self.tasks, self.max_exec_time)
+        pass
 
-    def wait_count(self):
-        return len(self.tasks)
 
-    @staticmethod
-    def alive_count():
-        return len(multiprocessing.active_children())
+    # def wait_count(self):
+    #     return len(self.tasks)
+    #
+    # def alive_count(self):
+    #     return len(self.run_tasks)
