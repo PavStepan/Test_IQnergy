@@ -1,40 +1,57 @@
 import multiprocessing
+import queue
 import time
 
 
 class ProcessController:
     """ Класс, который организует очередь задач и параллельное их выполнение """
     def __init__(self):
-        self.max_proc = 1
+        self.max_proc = multiprocessing.Queue()
         self.tasks = multiprocessing.Queue()
-        self.run_tasks = multiprocessing.Queue()
-        print('nen')
-        print(self.tasks.empty())
-        multiprocessing.Process(target=self.process_handler, args=(self.tasks, self.run_tasks)).start()
+        self.max_proc.put(1)
+        self.is_wait = multiprocessing.Queue()
+        self.count_run_tasks = multiprocessing.Queue()
+        self.count_tasks = multiprocessing.Queue()
+
+        multiprocessing.Process(target=self.process_handler, args=(self.tasks, self.max_proc, self.is_wait)).start()
 
     def set_max_proc(self, n: int):
-        self.max_proc = n
+        self.max_proc.put(n)
 
     def start(self, tasks, max_exec_time=0):
-        self.tasks.put([[i_task[0], i_task[1], max_exec_time] for i_task in tasks])
-        print(self.tasks.get())
+        self.tasks.put([[(i_task[0], i_task[1]), max_exec_time] for i_task in tasks])
 
-    def process_handler(self, tasks):
-        print('nen!!')
-        if not tasks.empty():
-            print(tasks)
-            print('Start')
-            # while True:
-            #     print(self.tasks)
-            #     if len(self.run_tasks) < self.max_proc and len(tasks) > 0:
-            #         i_task, count_time = tasks.get()
-            #         process = multiprocessing.Process(target=self.run_task, args=(i_task, count_time))
-            #         self.run_tasks.append(process)
-            #         process.start()
-            #
-            #     for i_process in self.run_tasks:
-            #         if not i_process.is_alive():
-            #             self.run_tasks.remove(i_process)
+    def process_handler(self, tasks, max_proc, is_wait):
+        proc_task = []
+        proc_run_task = []
+        max_proc_count = 1
+        wait_process = False
+
+        while True:
+            if not is_wait.empty():
+                wait_process = is_wait.get()
+
+            if not max_proc.empty():
+                max_proc_count = max_proc.get()
+
+            if not tasks.empty():
+                proc_task.extend(tasks.get())
+
+            if len(proc_task) > 0 and max_proc_count > len(proc_run_task):
+                i_task, count_time = proc_task.pop(0)
+                process = multiprocessing.Process(target=self.run_task, args=(i_task, count_time))
+                proc_run_task.append(process)
+                process.start()
+                print('запустили', process)
+                if wait_process:
+                    print(process, 'запуск с ожиданием')
+                    process.join()
+                    time.sleep(count_time)
+            for i in proc_run_task:
+                if not i.is_alive():
+                    proc_run_task.remove(i)
+            self.count_run_tasks.put(len(proc_run_task))
+            self.count_tasks.put(len(proc_task))
 
     @staticmethod
     def run_task(task, max_exec_time):
@@ -52,11 +69,15 @@ class ProcessController:
 
 
     def wait(self):
-        pass
+        self.is_wait.put(True)
 
+    def wait_count(self):
 
-    # def wait_count(self):
-    #     return len(self.tasks)
-    #
-    # def alive_count(self):
-    #     return len(self.run_tasks)
+        count = self.count_tasks.get()
+        self.count_tasks.put(count)
+        return count
+
+    def alive_count(self):
+        count = self.count_run_tasks.get()
+        self.count_run_tasks.put(count)
+        return count
