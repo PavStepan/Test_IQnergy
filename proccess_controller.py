@@ -1,5 +1,4 @@
 import multiprocessing
-import queue
 import time
 
 
@@ -50,6 +49,7 @@ class ProcessController:
             for i in proc_run_task:
                 if not i.is_alive():
                     proc_run_task.remove(i)
+            time.sleep(1)
             self.count_run_tasks.put(len(proc_run_task))
             self.count_tasks.put(len(proc_task))
 
@@ -65,19 +65,16 @@ class ProcessController:
             while time.time() - start < max_exec_time:
                 time.sleep(1)
             process.terminate()
-        print(f'end {multiprocessing.current_process()}')
 
+        print(f'end {multiprocessing.current_process()}')
 
     def wait(self):
         self.is_wait.put(True)
 
     def wait_count(self):
-
         count = self.count_tasks.get()
-        self.count_tasks.put(count)
         return count
 
     def alive_count(self):
         count = self.count_run_tasks.get()
-        self.count_run_tasks.put(count)
         return count
